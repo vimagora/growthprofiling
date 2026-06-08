@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image
 import pillow_heif
 import cv2
-from config import DEFAULT_OUTPUT_EXT
+
 
 def ensure_output_dir(path):
     os.makedirs(path, exist_ok=True)
@@ -47,42 +47,6 @@ def draw_detected_circle(image_bgr, circle, color=(0, 255, 0), thickness=None):
     return out
 
 
-def convert_to_tiff(input_path, output_dir, output_ext=DEFAULT_OUTPUT_EXT, output_stem=None):
-    """
-    Converts an image to TIFF format. Handles HEIC and general formats.
-
-    If output_stem is provided, the converted file is written as
-    '<output_stem>.<output_ext>'; otherwise the input file stem is used.
-    """
-    base_name = os.path.basename(input_path)
-    file_name, ext = os.path.splitext(base_name)
-    ext = ext.lower()
-    ensure_output_dir(output_dir)
-    out_stem = output_stem if output_stem is not None else file_name
-    output_path = os.path.join(output_dir, f"{out_stem}.{output_ext}")
-
-    if ext == f".{output_ext}":
-        # Already in desired format, just copy
-        if not os.path.exists(output_path):
-            Image.open(input_path).save(output_path)
-        return output_path
-
-    try:
-        if ext == '.heic':
-            heif_file = pillow_heif.read_heif(input_path)
-            img = Image.frombytes(heif_file.mode, heif_file.size, heif_file.data, "raw")
-        else:
-            img = Image.open(input_path)
-        
-        if img.mode not in ("RGB", "L"):
-            img = img.convert("RGB")
-
-        img.save(output_path)
-        return output_path
-    except Exception as e:
-        print(f"[ERROR] Could not convert {input_path}: {e}")
-        return None
-
 def _pixel_bounds(config, width):
     """
     Resolves the fraction-of-width config knobs to concrete pixel values
@@ -106,12 +70,14 @@ def detect_plate_circles(image, config):
     h, w = image.shape[:2]
     min_dist, min_radius, max_radius = _pixel_bounds(config, w)
 
+    # HoughCircles computes its own gradient via Canny using `param1` as the
+    # upper threshold, so we just pass it the blurred grayscale. Running an
+    # explicit equalizeHist + Canny ahead of it (the previous behaviour)
+    # tended to produce noisier edges and was strictly slower.
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    gray = cv2.equalizeHist(gray)
     blurred = cv2.GaussianBlur(gray, (5, 5), 2)
-    edges = cv2.Canny(blurred, 50, 150)
     circles = cv2.HoughCircles(
-        edges, cv2.HOUGH_GRADIENT,
+        blurred, cv2.HOUGH_GRADIENT,
         dp=config['dp'],
         minDist=min_dist,
         param1=config['param1'],

@@ -8,12 +8,12 @@ from collections import Counter
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from config import (
-    SUPPORTED_FORMATS, DEFAULT_OUTPUT_EXT, DATA_DIR, RAW_DIR, CONVERTED_DIR,
+    SUPPORTED_FORMATS, DEFAULT_OUTPUT_EXT, DATA_DIR, RAW_DIR,
     CROPPED_DIR, MANIFESTS_DIR, CIRCLE_DETECTION_CONFIG, THREADS,
     init_manifest, log_action,
 )
 from utils.image_utils import (
-    convert_to_tiff, ensure_output_dir,
+    ensure_output_dir, load_image_bgr,
     detect_plate_circle_downscaled, crop_plate, mask_to_circle,
     draw_detected_circle,
 )
@@ -72,16 +72,17 @@ def _write_debug_overlay(image_bgr, circle, debug_path):
 
 def process_image(image_path, rename_map, debug=False):
     """
-    Processes a single image: converts (saving directly with the new name),
-    detects the plate circle, crops, and masks.
+    Processes a single image: decodes the raw image into memory, detects
+    the plate circle, crops, masks, and writes the final cropped TIFF.
+    No intermediate file is written to disk.
 
     Pure worker function: performs no logging or shared-state writes so it
     can run in a process pool. Returns (outcome, events) where outcome is
     one of {'ok', 'skipped', 'failed'} and events is a list of tuples
     (filename, stage, status, message, duration_ms) suitable for log_action.
 
-    If debug is True, a thumbnail of the converted image with the detected
-    circle drawn on top is written to local_data/debug/<new_name>.jpg.
+    If debug is True, a thumbnail with the detected circle drawn on top is
+    written to local_data/debug/<new_name>.jpg.
     """
     original_name = os.path.basename(image_path)
     file_stem, _ = os.path.splitext(original_name)
@@ -95,24 +96,6 @@ def process_image(image_path, rename_map, debug=False):
 
     new_filename = f"{new_name}.{DEFAULT_OUTPUT_EXT}"
 
-    # Step 1: Convert to TIFF, saved directly under the new name.
-    ensure_output_dir(CONVERTED_DIR)
-    converted_path = os.path.join(CONVERTED_DIR, new_filename)
-
-    if not os.path.exists(converted_path):
-        t0 = time.perf_counter()
-        result = convert_to_tiff(image_path, CONVERTED_DIR, output_stem=new_name)
-        dt = (time.perf_counter() - t0) * 1000.0
-        if not result:
-            events.append((original_name, 'convert', 'failed',
-                           'convert_to_tiff returned None', dt))
-            return 'failed', events
-        events.append((original_name, 'convert', 'ok', new_filename, dt))
-    else:
-        events.append((original_name, 'convert', 'skipped',
-                       'output already exists', None))
-
-    # Step 2: Circle detection, crop, and mask.
     ensure_output_dir(CROPPED_DIR)
     cropped_path = os.path.join(CROPPED_DIR, new_filename)
 
@@ -121,14 +104,19 @@ def process_image(image_path, rename_map, debug=False):
                        'output already exists', None))
         return 'ok', events
 
+    # Step 1: Decode the raw image into a BGR numpy array.
     t0 = time.perf_counter()
-    image = cv2.imread(converted_path)
+    image = load_image_bgr(image_path)
+    dt = (time.perf_counter() - t0) * 1000.0
     if image is None:
-        dt = (time.perf_counter() - t0) * 1000.0
-        events.append((original_name, 'crop', 'failed',
-                       f"could not load {converted_path}", dt))
+        events.append((original_name, 'decode', 'failed',
+                       f"could not load {image_path}", dt))
         return 'failed', events
+    events.append((original_name, 'decode', 'ok',
+                   f"{image.shape[1]}x{image.shape[0]}", dt))
 
+    # Step 2: Detect plate circle, crop, mask, write.
+    t0 = time.perf_counter()
     circle = detect_plate_circle_downscaled(image, CIRCLE_DETECTION_CONFIG, resize_factor=0.25)
     if circle is None:
         dt = (time.perf_counter() - t0) * 1000.0

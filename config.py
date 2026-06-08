@@ -18,7 +18,7 @@ CIRCLE_DETECTION_CONFIG = {
     # (iPhone HEIC default) these correspond to minDist=484, minRadius=847,
     # maxRadius=1210 px, matching the previously hand-tuned absolute values.
     'minDist_frac':   0.12,
-    'minRadius_frac': 0.25,
+    'minRadius_frac': 0.18,
     'maxRadius_frac': 0.38,
     'radius_pad_pct': 0.0,         # Grow the detected radius by this fraction. Useful if HoughCircles latches onto the inner agar rim.
     'center_tolerance_frac': 0.1, # Max allowed distance of plate centre from image centre, as a fraction of image width. Candidates outside this disc are dropped before accumulator-based selection (kills table edges, lens vignette rings). Raise it if your plates are very off-centre.
@@ -28,7 +28,6 @@ CIRCLE_DETECTION_CONFIG = {
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'local_data')
 RAW_DIR = os.path.join(DATA_DIR, 'raw_pictures')
-CONVERTED_DIR = os.path.join(DATA_DIR, 'converted_pictures')
 CROPPED_DIR = os.path.join(DATA_DIR, 'cropped_pictures')
 MANIFESTS_DIR = os.path.join(DATA_DIR, 'manifests')
 

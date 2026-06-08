@@ -69,7 +69,6 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
 
     The script will process the images and save the output in the following directories:
     
-    * `local_data/converted_pictures/`: Intermediate .tiff files (saved directly under the new name from the CSV).
     * `local_data/cropped_pictures/`: The final, cropped images ready for publication.
     * `local_data/manifests/`: One CSV per run (`run_YYYYMMDD_HHMMSS.csv`) recording each file's stage, status, message, and duration in ms.
 
@@ -146,7 +145,6 @@ project_root/
 │   ├── rename_matrix.csv         # CSV for renaming images (required)
 │   ├── rename_matrix_example.csv # Example CSV for reference
 │   ├── raw_pictures/             # Place your input images here
-│   ├── converted_pictures/       # Intermediate TIFFs (saved directly under the new name)
 │   ├── cropped_pictures/         # Final, cropped images
 │   ├── manifests/                # Per-run CSV manifests
 │   └── debug/                    # (only when --debug) circle-overlay thumbnails
