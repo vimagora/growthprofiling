@@ -70,15 +70,24 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
 
 7.  **Run the figure making tool**:
 
+    Fully interactive (you'll be prompted for axis, strains, substrates, and timepoint):
+
     ```bash
     python generate_figure.py
     ```
-    You will be prompted to select:
-    
-    * Axis orientation (strains on vertical or horizontal axis)
-    * Which strains, substrates, and timepoints to include
-    
-    The script will create a grid PDF with your selections, with no space between images and clear axis labels.
+
+    Or fully scriptable (any combination of CLI args; missing ones fall back to prompts):
+
+    ```bash
+    python generate_figure.py \
+        --axis vertical \
+        --strains CBS464,CBS487 \
+        --substrates cellulose,starch \
+        --timepoint 3d \
+        --output figure.pdf
+    ```
+
+    The rename matrix is the source of truth: if it includes `strain`, `substrate`, and `day` columns those are used directly; otherwise the script parses these from `new_name` by splitting on `_` (which requires exactly three tokens).
 
 ***
 

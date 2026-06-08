@@ -1,36 +1,60 @@
 import os
-import re
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 from PIL import Image
 
-def get_image_info(filename):
-    """
-    Extracts strain, substrate, and timepoint from the filename.
-    Assumes the filename format is 'strain_substrate_timepoint.tiff'.
-    """
-    match = re.match(r'(.+?)_(.+?)_(.+?)\.tiff$', filename)
-    if match:
-        return match.groups()
-    return None, None, None
 
-def load_images(cropped_dir):
+def load_images(cropped_dir, rename_csv_path):
     """
-    Loads images from the cropped directory and organizes them by strain, substrate, and timepoint.
+    Loads cropped images indexed by (strain, substrate, timepoint).
+
+    The rename CSV is the source of truth. If it has explicit
+    'strain', 'substrate', 'day' columns, those are used directly.
+    Otherwise the function falls back to splitting 'new_name' on '_';
+    rows whose new_name does not split into exactly three tokens are
+    skipped with a warning.
+
+    Returns: (images dict, sorted strains, sorted substrates, sorted timepoints).
     """
+    df = pd.read_csv(rename_csv_path)
+    if 'new_name' not in df.columns:
+        raise ValueError(f"{rename_csv_path} is missing required column 'new_name'.")
+
+    has_explicit = {'strain', 'substrate', 'day'}.issubset(df.columns)
+
     images = {}
     strains, substrates, timepoints = set(), set(), set()
-    for filename in os.listdir(cropped_dir):
-        if filename.lower().endswith('.tiff'):
-            strain, substrate, timepoint = get_image_info(filename)
-            if strain and substrate and timepoint:
-                key = (strain, substrate, timepoint)
-                images[key] = os.path.join(cropped_dir, filename)
-                strains.add(strain)
-                substrates.add(substrate)
-                timepoints.add(timepoint)
+
+    for _, row in df.iterrows():
+        new_name = str(row['new_name'])
+        if has_explicit:
+            strain = str(row['strain'])
+            substrate = str(row['substrate'])
+            timepoint = str(row['day'])
+        else:
+            tokens = new_name.split('_')
+            if len(tokens) != 3:
+                logging.warning(
+                    f"Skipping '{new_name}': expected 3 underscore-separated tokens "
+                    f"(strain_substrate_timepoint), got {len(tokens)}."
+                )
+                continue
+            strain, substrate, timepoint = tokens
+
+        path = os.path.join(cropped_dir, f"{new_name}.tiff")
+        if not os.path.exists(path):
+            continue
+
+        images[(strain, substrate, timepoint)] = path
+        strains.add(strain)
+        substrates.add(substrate)
+        timepoints.add(timepoint)
+
     return images, sorted(strains), sorted(substrates), sorted(timepoints)
+
 
 def generate_figure(selected_strains, selected_substrates, selected_timepoint, images, output_pdf, axis_choice):
     """
@@ -40,7 +64,6 @@ def generate_figure(selected_strains, selected_substrates, selected_timepoint, i
     n_cols = len(selected_substrates) if axis_choice == 'vertical' else len(selected_strains)
     fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(4*n_cols, 4*n_rows))
 
-    # Ensure axes is always 2D array
     if n_rows == 1 and n_cols == 1:
         axes = np.array([[axes]])
     elif n_rows == 1:
@@ -64,7 +87,6 @@ def generate_figure(selected_strains, selected_substrates, selected_timepoint, i
             ax.set_xticks([])
             ax.set_yticks([])
 
-            # Add axis labels
             if j == 0:
                 ax.set_ylabel(substrate if axis_choice == 'vertical' else strain, fontsize=12)
             if i == 0:
