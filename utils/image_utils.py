@@ -110,6 +110,10 @@ def detect_plate_circle_downscaled(image_bgr, config, resize_factor=0.25):
     Detects the plate circle on a downscaled copy of an already-decoded
     BGR numpy image. Returns (x, y, r) in the original image's coordinates,
     or None if no circle is found.
+
+    config['radius_pad_pct'] (default 0.0) is applied to the final radius
+    after upscaling, to compensate for HoughCircles latching onto the
+    inner agar rim instead of the outer plate edge.
     """
     h, w = image_bgr.shape[:2]
     new_w = max(1, int(w * resize_factor))
@@ -126,7 +130,8 @@ def detect_plate_circle_downscaled(image_bgr, config, resize_factor=0.25):
         return None
     x, y, r = circle
     scale = 1.0 / resize_factor
-    return (int(x * scale), int(y * scale), int(r * scale))
+    pad = float(config.get('radius_pad_pct', 0.0))
+    return (int(x * scale), int(y * scale), int(r * scale * (1.0 + pad)))
 
 def crop_plate(image, circle):
     """

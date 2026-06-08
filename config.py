@@ -10,12 +10,13 @@ DEFAULT_OUTPUT_EXT = 'tiff'
 
 # ---- Circle detection settings ----
 CIRCLE_DETECTION_CONFIG = {
-    'dp': 1.5,           # How much to reduce the image resolution for detection (higher = faster, less precise)
-    'minDist': 500,      # How close two circles can be to each other (in pixels)
-    'param1': 100,       # Sensitivity for finding edges in the image (higher = fewer edges detected)
-    'param2': 30,        # How strong a circle needs to be to count as a real circle (lower = more circles found, but more false ones)
-    'minRadius': 850,    # Smallest circle size to look for (in pixels)
-    'maxRadius': 1300    # Largest circle size to look for (in pixels)
+    'dp': 1.5,             # How much to reduce the image resolution for detection (higher = faster, less precise)
+    'minDist': 500,        # How close two circles can be to each other (in pixels)
+    'param1': 100,         # Sensitivity for finding edges in the image (higher = fewer edges detected)
+    'param2': 22,          # How strong a circle needs to be to count as a real circle (lower = more circles found, but more false ones)
+    'minRadius': 850,      # Smallest circle size to look for (in pixels)
+    'maxRadius': 1300,     # Largest circle size to look for (in pixels)
+    'radius_pad_pct': 0.03,  # Grow the detected radius by this fraction after detection. Compensates for HoughCircles latching onto the inner agar rim instead of the outer plate edge.
 }
 
 # ---- Paths ----
