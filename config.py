@@ -24,10 +24,30 @@ DATA_DIR = os.path.join(BASE_DIR, 'local_data')
 RAW_DIR = os.path.join(DATA_DIR, 'raw_pictures')
 CONVERTED_DIR = os.path.join(DATA_DIR, 'converted_pictures')
 CROPPED_DIR = os.path.join(DATA_DIR, 'cropped_pictures')
+MANIFESTS_DIR = os.path.join(DATA_DIR, 'manifests')
 
 
 # ---- Logs ----
-def log_action(log_file, filename, stage, status, message=''):
-    with open(log_file, 'a', newline = '') as f:
+MANIFEST_COLUMNS = ['filename', 'stage', 'status', 'message', 'duration_ms']
+
+
+def init_manifest(log_file):
+    """
+    Create (or truncate) a manifest file and write the header row.
+    """
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    with open(log_file, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow([filename, stage, status, message])
+        writer.writerow(MANIFEST_COLUMNS)
+
+
+def log_action(log_file, filename, stage, status, message='', duration_ms=None):
+    with open(log_file, 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            filename,
+            stage,
+            status,
+            message,
+            '' if duration_ms is None else f"{duration_ms:.1f}",
+        ])

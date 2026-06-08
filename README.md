@@ -64,8 +64,9 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
     
     * `local_data/converted_pictures/`: Intermediate .tiff files (saved directly under the new name from the CSV).
     * `local_data/cropped_pictures/`: The final, cropped images ready for publication.
-    
-    The script will skip parts of the process for which the output is ready, making it possible to run the command without re-doing all the work.
+    * `local_data/manifests/`: One CSV per run (`run_YYYYMMDD_HHMMSS.csv`) recording each file's stage, status, message, and duration in ms.
+
+    The script will skip parts of the process for which the output is ready, making it possible to run the command without re-doing all the work. The end-of-run log line summarises counts as `ok`/`skipped`/`failed`.
 
 7.  **Run the figure making tool**:
 
