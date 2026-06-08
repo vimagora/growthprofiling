@@ -60,6 +60,8 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
     ```bash
     python process_pictures.py --max-workers 8
     ```
+
+    Add `--debug` to also write thumbnails with the detected plate circle drawn on top to `local_data/debug/`. Useful for verifying detection after tuning `CIRCLE_DETECTION_CONFIG`.
     The script will process the images and save the output in the following directories:
     
     * `local_data/converted_pictures/`: Intermediate .tiff files (saved directly under the new name from the CSV).
@@ -100,6 +102,30 @@ Install **Anaconda** from your institution's **Software Center** or by downloadi
 ## Configuration
 
 You can adjust various settings by editing `config.py`. These settings include file paths, supported formats, and circle-detection parameters. For example, you can change the input and output directories or fine-tune the circle recognition parameters.
+
+## Tests
+
+The repo ships with regression tests for circle detection.
+
+1.  **Seed the expected values.** With your raw images in `local_data/raw_pictures/`, run the calibration script once:
+
+    ```bash
+    python tools/calibrate.py
+    ```
+
+    This writes `tests/fixtures/expected_circles.csv` from whatever `CIRCLE_DETECTION_CONFIG` currently produces on your images, and saves a thumbnail with the detected circle drawn on top to `tests/fixtures/overlays/` for each image. **Open the overlays before trusting the baseline** — if a detection looks wrong, retune `CIRCLE_DETECTION_CONFIG` and re-run the calibration.
+
+2.  **Run the tests:**
+
+    ```bash
+    python -m unittest discover tests
+    ```
+
+    A synthetic-image smoke test always runs. The per-fixture regression test runs once `expected_circles.csv` exists and skips cleanly otherwise. Tolerance is ±25 px on each of `x`, `y`, and `r`.
+
+3.  **After intentional retuning:** re-run `python tools/calibrate.py` to refresh the expected values.
+
+Fixture images, the expected CSV, and the overlays are all gitignored (they are tied to one user's photos and should stay local).
 
 ## Directory architechture
 

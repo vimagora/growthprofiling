@@ -8,6 +8,45 @@ from config import DEFAULT_OUTPUT_EXT
 def ensure_output_dir(path):
     os.makedirs(path, exist_ok=True)
 
+
+def load_image_bgr(input_path):
+    """
+    Loads an image from any supported format into a BGR numpy array.
+    Returns None on failure.
+    """
+    ext = os.path.splitext(input_path)[1].lower()
+    try:
+        if ext == '.heic':
+            heif_file = pillow_heif.read_heif(input_path)
+            img = Image.frombytes(heif_file.mode, heif_file.size, heif_file.data, "raw")
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+        # cv2.imread handles JPG/PNG/TIFF natively
+        return cv2.imread(input_path)
+    except Exception as e:
+        print(f"[ERROR] Could not load {input_path}: {e}")
+        return None
+
+
+def draw_detected_circle(image_bgr, circle, color=(0, 255, 0), thickness=None):
+    """
+    Returns a copy of image_bgr with the detected circle drawn on top.
+    Stroke thickness defaults to ~0.5% of image diagonal for visibility on
+    high-resolution inputs.
+    """
+    out = image_bgr.copy()
+    if circle is None:
+        return out
+    x, y, r = circle
+    if thickness is None:
+        h, w = out.shape[:2]
+        thickness = max(2, int(0.005 * (h ** 2 + w ** 2) ** 0.5))
+    cv2.circle(out, (x, y), r, color, thickness)
+    cv2.circle(out, (x, y), max(2, thickness), color, -1)  # centre dot
+    return out
+
+
 def convert_to_tiff(input_path, output_dir, output_ext=DEFAULT_OUTPUT_EXT, output_stem=None):
     """
     Converts an image to TIFF format. Handles HEIC and general formats.

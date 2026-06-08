@@ -14,8 +14,12 @@ from config import (
 )
 from utils.image_utils import (
     convert_to_tiff, ensure_output_dir,
-    detect_plate_circle_downscaled, crop_plate, mask_to_circle
+    detect_plate_circle_downscaled, crop_plate, mask_to_circle,
+    draw_detected_circle,
 )
+
+DEBUG_DIR = os.path.join(DATA_DIR, 'debug')
+DEBUG_OVERLAY_LONG_EDGE = 800
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,7 +60,17 @@ def load_rename_map(rename_csv):
     return rename_map
 
 
-def process_image(image_path, rename_map):
+def _write_debug_overlay(image_bgr, circle, debug_path):
+    h, w = image_bgr.shape[:2]
+    scale = DEBUG_OVERLAY_LONG_EDGE / max(h, w)
+    overlay = draw_detected_circle(image_bgr, circle)
+    if scale < 1.0:
+        overlay = cv2.resize(overlay, (int(w * scale), int(h * scale)),
+                             interpolation=cv2.INTER_AREA)
+    cv2.imwrite(debug_path, overlay)
+
+
+def process_image(image_path, rename_map, debug=False):
     """
     Processes a single image: converts (saving directly with the new name),
     detects the plate circle, crops, and masks.
@@ -65,6 +79,9 @@ def process_image(image_path, rename_map):
     can run in a process pool. Returns (outcome, events) where outcome is
     one of {'ok', 'skipped', 'failed'} and events is a list of tuples
     (filename, stage, status, message, duration_ms) suitable for log_action.
+
+    If debug is True, a thumbnail of the converted image with the detected
+    circle drawn on top is written to local_data/debug/<new_name>.jpg.
     """
     original_name = os.path.basename(image_path)
     file_stem, _ = os.path.splitext(original_name)
@@ -115,9 +132,16 @@ def process_image(image_path, rename_map):
     circle = detect_plate_circle_downscaled(image, CIRCLE_DETECTION_CONFIG, resize_factor=0.25)
     if circle is None:
         dt = (time.perf_counter() - t0) * 1000.0
+        if debug:
+            ensure_output_dir(DEBUG_DIR)
+            _write_debug_overlay(image, None, os.path.join(DEBUG_DIR, f"{new_name}.jpg"))
         events.append((original_name, 'crop', 'failed',
                        f"no circular plate detected in {new_filename}", dt))
         return 'failed', events
+
+    if debug:
+        ensure_output_dir(DEBUG_DIR)
+        _write_debug_overlay(image, circle, os.path.join(DEBUG_DIR, f"{new_name}.jpg"))
 
     cropped = crop_plate(image, circle)
     masked = mask_to_circle(cropped)
@@ -128,8 +152,10 @@ def process_image(image_path, rename_map):
     return 'ok', events
 
 
-def batch_process(rename_csv, max_workers=THREADS):
+def batch_process(rename_csv, max_workers=THREADS, debug=False):
     logging.info("Starting batch processing...")
+    if debug:
+        logging.info(f"Debug overlays will be written to {DEBUG_DIR}/")
 
     if not os.path.exists(RAW_DIR):
         logging.error(f"Input folder '{RAW_DIR}' does not exist.")
@@ -151,7 +177,7 @@ def batch_process(rename_csv, max_workers=THREADS):
 
     outcomes = Counter()
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(process_image, fp, rename_map): fp for fp in file_paths}
+        futures = {executor.submit(process_image, fp, rename_map, debug): fp for fp in file_paths}
         for future in as_completed(futures):
             fp = futures[future]
             original_name = os.path.basename(fp)
@@ -188,6 +214,8 @@ if __name__ == "__main__":
                         help="CSV file (in local_data/) for renaming images. Required.")
     parser.add_argument("--max-workers", type=int, default=THREADS,
                         help="Number of parallel workers (default: all cores)")
+    parser.add_argument("--debug", action="store_true",
+                        help="Write a thumbnail with the detected circle drawn on top to local_data/debug/.")
     args = parser.parse_args()
 
-    batch_process(rename_csv=args.rename_csv, max_workers=args.max_workers)
+    batch_process(rename_csv=args.rename_csv, max_workers=args.max_workers, debug=args.debug)

@@ -1,8 +1,15 @@
 __pycache__/
 utils/__pycache__/
+tests/__pycache__/
+tools/__pycache__/
 .venv/
 .vscode/
 local_data/*
 
 # Always keep the example matrix file
 !local_data/rename_matrix_example.csv
+
+# Test fixtures are user-specific (derived from their own images);
+# the calibration script writes them locally and they should not be committed.
+tests/fixtures/expected_circles.csv
+tests/fixtures/overlays/

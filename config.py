@@ -14,8 +14,8 @@ CIRCLE_DETECTION_CONFIG = {
     'minDist': 500,      # How close two circles can be to each other (in pixels)
     'param1': 100,       # Sensitivity for finding edges in the image (higher = fewer edges detected)
     'param2': 30,        # How strong a circle needs to be to count as a real circle (lower = more circles found, but more false ones)
-    'minRadius': 1100,   # Smallest circle size to look for (in pixels)
-    'maxRadius': 1600    # Largest circle size to look for (in pixels)
+    'minRadius': 850,    # Smallest circle size to look for (in pixels)
+    'maxRadius': 1300    # Largest circle size to look for (in pixels)
 }
 
 # ---- Paths ----
