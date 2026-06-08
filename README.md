@@ -11,8 +11,10 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
 - **Batch conversion**: Converts various image formats to `.tiff`.
 - **Renaming**: Renames images using a required `rename_matrix.csv`.
 - **Automated cropping**: Crops the petri dish from the image for figure preparation.
-- **Multithreaded processing**: Uses all available CPU cores by default for fast batch processing. You can override the number of threads with a command-line argument.
-- **Fast circle detection**: Detects plate circles on JPEGs for speed, then applies coordinates to original TIFFs.
+- **Multiprocessed processing**: Uses all available CPU cores by default for fast batch processing. You can override the number of workers with a command-line argument.
+- **Resolution-independent circle detection**: Detects the plate circle on a downscaled copy of each image. Detector bounds are expressed as a fraction of image width, so the same config works across cameras.
+- **Per-run manifest**: Each batch writes a CSV with stage, status, message, and duration for every image.
+- **Regression tests**: A calibration script + unit tests catch parameter drift in the circle detector.
 - **Publishable figure creation**: Generate grid figures from cropped images, with customizable axis labels and layout, ready for publication.
 
 ---
@@ -26,18 +28,16 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
     cd growthprofiling
     ```
     
-2.  **(Optional/recommended) Build a conda environment**:
+2.  **Create and activate a Python virtual environment**:
 
     ```bash
-    conda create --name growthprofiling python=3.13.5
+    python -m venv .venv
+    source .venv/bin/activate         # Linux / macOS / WSL
+    # .venv\Scripts\activate          # Windows PowerShell / cmd
+    # source .venv/Scripts/activate   # Windows Git Bash
     ```
 
-    You can activate and deactivate the environment using the following code.
-
-    ```bash
-    conda activate growthprofiling
-    conda deactivate
-    ```
+    When you're done, deactivate it with `deactivate`.
 
 3.  **Install dependencies**:
 
@@ -55,13 +55,18 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
 
 6.  **Run the picture processing tool**:
 
-    You can run the batch processor using all available CPU cores (default), or specify the number of threads:
+    With your venv active, run the full pipeline over every image listed in `rename_matrix.csv`:
 
     ```bash
-    python process_pictures.py --max-workers 8
+    python process_pictures.py
     ```
 
-    Add `--debug` to also write thumbnails with the detected plate circle drawn on top to `local_data/debug/`. Useful for verifying detection after tuning `CIRCLE_DETECTION_CONFIG`.
+    Optional flags:
+
+    * `--max-workers N` — number of parallel worker processes (default: all CPU cores).
+    * `--rename-csv FILE` — name of the rename CSV inside `local_data/` (default: `rename_matrix.csv`).
+    * `--debug` — also write 800 px thumbnails to `local_data/debug/` with the detected plate circle drawn on top. Useful for verifying detection after tuning `CIRCLE_DETECTION_CONFIG`.
+
     The script will process the images and save the output in the following directories:
     
     * `local_data/converted_pictures/`: Intermediate .tiff files (saved directly under the new name from the CSV).
@@ -92,12 +97,6 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
     The rename matrix is the source of truth: if it includes `strain`, `substrate`, and `day` columns those are used directly; otherwise the script parses these from `new_name` by splitting on `_` (which requires exactly three tokens).
 
 ***
-
-## Prerequisites
-
-### 1. Conda installation
-
-Install **Anaconda** from your institution's **Software Center** or by downloading the installer from the [Anaconda downloadpage](https://www.anaconda.com/download).
 
 ## Configuration
 
@@ -130,20 +129,27 @@ Fixture images, the expected CSV, and the overlays are all gitignored (they are 
 ## Directory architechture
 
 ```
-project_root/  
-├── process_pictures.py         # Batch processing with multithreading
-├── generate_figure.py          # Interactive figure creation
-├── config.py                   # Configuration settings for the tool
-├── requirements.txt            # List of Python dependencies
-├── utils/                      # Helper scripts
-│   ├── image_utils.py          # Functions for image processing
-│   └── figure_utils.py         # Functions for figure creation
-├── local_data/                 # All data and output files are stored here
-│   ├── rename_matrix.csv       # CSV file for renaming images (required)
+project_root/
+├── process_pictures.py           # Batch processing pipeline
+├── generate_figure.py            # Grid-figure creation (CLI or interactive)
+├── config.py                     # Configuration (paths, detector knobs, manifest helpers)
+├── requirements.txt              # Python dependencies
+├── utils/
+│   ├── image_utils.py            # Image decoding, circle detection, cropping
+│   └── figure_utils.py           # Figure-grid layout and image lookup
+├── tools/
+│   └── calibrate.py              # Seeds tests/fixtures/expected_circles.csv and writes overlays
+├── tests/
+│   ├── test_circle_detection.py  # Synthetic smoke test + per-fixture regression test
+│   └── fixtures/                 # (gitignored) expected_circles.csv and overlay thumbnails
+├── local_data/                   # All data and output files (gitignored)
+│   ├── rename_matrix.csv         # CSV for renaming images (required)
 │   ├── rename_matrix_example.csv # Example CSV for reference
-│   ├── raw_pictures/           # Place your input images here
-│   ├── converted_pictures/     # Intermediate TIFF files (saved directly under the new name)
-│   └── cropped_pictures/       # Final, cropped images are saved here
+│   ├── raw_pictures/             # Place your input images here
+│   ├── converted_pictures/       # Intermediate TIFFs (saved directly under the new name)
+│   ├── cropped_pictures/         # Final, cropped images
+│   ├── manifests/                # Per-run CSV manifests
+│   └── debug/                    # (only when --debug) circle-overlay thumbnails
 ```
 
 ## Contact
