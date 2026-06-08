@@ -8,7 +8,7 @@ from collections import Counter
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from config import (
-    SUPPORTED_FORMATS, DEFAULT_OUTPUT_EXT, DATA_DIR, RAW_DIR,
+    SUPPORTED_FORMATS, DEFAULT_OUTPUT_EXT, DATA_DIR, RAW_DIR, RESIZE_FACTOR,
     CROPPED_DIR, MANIFESTS_DIR, CIRCLE_DETECTION_CONFIG, THREADS,
     init_manifest, log_action,
 )
@@ -117,7 +117,7 @@ def process_image(image_path, rename_map, debug=False):
 
     # Step 2: Detect plate circle, crop, mask, write.
     t0 = time.perf_counter()
-    circle = detect_plate_circle_downscaled(image, CIRCLE_DETECTION_CONFIG, resize_factor=0.25)
+    circle = detect_plate_circle_downscaled(image, CIRCLE_DETECTION_CONFIG, resize_factor=RESIZE_FACTOR)
     if circle is None:
         dt = (time.perf_counter() - t0) * 1000.0
         if debug:

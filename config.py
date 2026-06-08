@@ -9,6 +9,8 @@ SUPPORTED_FORMATS = ('.png', '.jpg', '.jpeg', '.tiff', '.heic')
 DEFAULT_OUTPUT_EXT = 'tiff'
 
 # ---- Circle detection settings ----
+RESIZE_FACTOR = 0.25
+
 CIRCLE_DETECTION_CONFIG = {
     'dp': 1.5,              # How much to reduce the image resolution for detection (higher = faster, less precise)
     'param1': 100,          # Sensitivity for finding edges in the image (higher = fewer edges detected)
