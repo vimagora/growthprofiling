@@ -80,20 +80,22 @@ def generate_figure(selected_strains, selected_substrates, selected_timepoint, i
                 key = (substrate, strain, selected_timepoint)
             img_path = images.get(key)
             if img_path and os.path.exists(img_path):
-                img = Image.open(img_path)
-                ax.imshow(img)
+                with Image.open(img_path) as img:
+                    ax.imshow(img)
             else:
                 ax.text(0.5, 0.5, 'No image', ha='center', va='center')
             ax.set_xticks([])
             ax.set_yticks([])
+            ax.set_aspect('equal')
 
+            # ylabel = identity of the row (varies down the column).
+            # title  = identity of the column (varies across the row).
             if j == 0:
-                ax.set_ylabel(substrate if axis_choice == 'vertical' else strain, fontsize=12)
+                ax.set_ylabel(strain if axis_choice == 'vertical' else substrate, fontsize=12)
             if i == 0:
-                ax.set_title(strain if axis_choice == 'vertical' else substrate, fontsize=12)
+                ax.set_title(substrate if axis_choice == 'vertical' else strain, fontsize=12)
 
-    plt.tight_layout()
     plt.subplots_adjust(wspace=0, hspace=0)
     with PdfPages(output_pdf) as pdf:
-        pdf.savefig(fig)
+        pdf.savefig(fig, bbox_inches='tight', pad_inches=0.1)
     plt.close(fig)
