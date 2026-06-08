@@ -23,7 +23,6 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'local_data')
 RAW_DIR = os.path.join(DATA_DIR, 'raw_pictures')
 CONVERTED_DIR = os.path.join(DATA_DIR, 'converted_pictures')
-RENAMED_DIR = os.path.join(DATA_DIR, 'renamed_pictures')
 CROPPED_DIR = os.path.join(DATA_DIR, 'cropped_pictures')
 
 

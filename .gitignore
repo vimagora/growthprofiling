@@ -4,9 +4,5 @@ utils/__pycache__/
 .vscode/
 local_data/*
 
-# Ignore everything in renamed_pictures except the folder itself
-/local_data/renamed_pictures/*
-!/local_data/renamed_pictures/.gitkeep
-
 # Always keep the example matrix file
 !local_data/rename_matrix_example.csv

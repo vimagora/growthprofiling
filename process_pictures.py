@@ -6,7 +6,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from config import (
     SUPPORTED_FORMATS, DEFAULT_OUTPUT_EXT, DATA_DIR, RAW_DIR, CONVERTED_DIR,
-    RENAMED_DIR, CROPPED_DIR, CIRCLE_DETECTION_CONFIG, THREADS
+    CROPPED_DIR, CIRCLE_DETECTION_CONFIG, THREADS
 )
 from utils.image_utils import (
     convert_to_tiff, ensure_output_dir,
@@ -54,7 +54,8 @@ def load_rename_map(rename_csv):
 
 def process_image(image_path, rename_map):
     """
-    Processes a single image: converts, renames, crops, and masks.
+    Processes a single image: converts (saving directly with the new name),
+    detects the plate circle, crops, and masks.
 
     Files whose stem is not present in rename_map are skipped with a warning.
     """
@@ -69,57 +70,41 @@ def process_image(image_path, rename_map):
 
     new_filename = f"{new_name}.{DEFAULT_OUTPUT_EXT}"
 
-    # Step 1: Convert to TIFF (under original name, for backwards compatibility with PR #1).
-    output_file = file_stem + '.' + DEFAULT_OUTPUT_EXT
-    output_path = os.path.join(CONVERTED_DIR, output_file)
+    # Step 1: Convert to TIFF, saved directly under the new name.
     ensure_output_dir(CONVERTED_DIR)
+    converted_path = os.path.join(CONVERTED_DIR, new_filename)
 
-    if not os.path.exists(output_path):
-        converted_path = convert_to_tiff(image_path, CONVERTED_DIR)
-        if not converted_path:
+    if not os.path.exists(converted_path):
+        result = convert_to_tiff(image_path, CONVERTED_DIR, output_stem=new_name)
+        if not result:
             logging.error(f"Conversion failed for {original_name}. Skipping.")
             return
     else:
-        converted_path = output_path
-        logging.debug(f"Already exists: {output_path}")
+        logging.debug(f"Already exists: {converted_path}")
 
-    # Step 2: Rename
-    new_path = os.path.join(RENAMED_DIR, new_filename)
-    ensure_output_dir(RENAMED_DIR)
-
-    if not os.path.exists(new_path):
-        try:
-            os.rename(converted_path, new_path)
-            logging.info(f"Renamed to: {new_filename}")
-        except Exception as e:
-            logging.error(f"Could not rename file: {e}")
-            return
-    else:
-        logging.debug(f"Already exists: {new_path}")
-
-    # Step 3: Circle Detection, Crop and Mask
-    cropped_path = os.path.join(CROPPED_DIR, new_filename)
+    # Step 2: Circle detection, crop, and mask.
     ensure_output_dir(CROPPED_DIR)
+    cropped_path = os.path.join(CROPPED_DIR, new_filename)
 
-    if not os.path.exists(cropped_path):
-        logging.info("Starting circle detection...")
-        image = cv2.imread(new_path)
-        if image is None:
-            logging.error("Could not load image for cropping.")
-            return
-
-        # Use fast JPEG-based circle detection for speed
-        circle = detect_plate_circle_fast(new_path, CIRCLE_DETECTION_CONFIG, jpeg_resize_factor=0.25)
-        if circle is None:
-            logging.warning("No circular plate detected.")
-            return
-
-        cropped = crop_plate(image, circle)
-        masked = mask_to_circle(cropped)
-        cv2.imwrite(cropped_path, masked)
-        logging.info(f"Cropped circular region saved: {os.path.basename(cropped_path)}")
-    else:
+    if os.path.exists(cropped_path):
         logging.debug(f"Already exists: {cropped_path}")
+        return
+
+    logging.info("Starting circle detection...")
+    image = cv2.imread(converted_path)
+    if image is None:
+        logging.error(f"Could not load converted image for cropping: {converted_path}")
+        return
+
+    circle = detect_plate_circle_fast(converted_path, CIRCLE_DETECTION_CONFIG, jpeg_resize_factor=0.25)
+    if circle is None:
+        logging.warning(f"No circular plate detected in {new_filename}.")
+        return
+
+    cropped = crop_plate(image, circle)
+    masked = mask_to_circle(cropped)
+    cv2.imwrite(cropped_path, masked)
+    logging.info(f"Cropped circular region saved: {new_filename}")
 
 
 def batch_process(rename_csv, max_workers=THREADS):
@@ -131,7 +116,6 @@ def batch_process(rename_csv, max_workers=THREADS):
 
     rename_map = load_rename_map(rename_csv)
 
-    # Gather all valid image files
     file_paths = [
         os.path.join(RAW_DIR, fname)
         for fname in os.listdir(RAW_DIR)
@@ -139,7 +123,6 @@ def batch_process(rename_csv, max_workers=THREADS):
     ]
     logging.info(f"Found {len(file_paths)} supported image files.")
 
-    # Process images in parallel
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(process_image, fp, rename_map) for fp in file_paths]
         for i, future in enumerate(futures):

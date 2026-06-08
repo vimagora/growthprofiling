@@ -8,15 +8,19 @@ from config import DEFAULT_OUTPUT_EXT
 def ensure_output_dir(path):
     os.makedirs(path, exist_ok=True)
 
-def convert_to_tiff(input_path, output_dir, output_ext=DEFAULT_OUTPUT_EXT):
+def convert_to_tiff(input_path, output_dir, output_ext=DEFAULT_OUTPUT_EXT, output_stem=None):
     """
     Converts an image to TIFF format. Handles HEIC and general formats.
+
+    If output_stem is provided, the converted file is written as
+    '<output_stem>.<output_ext>'; otherwise the input file stem is used.
     """
     base_name = os.path.basename(input_path)
     file_name, ext = os.path.splitext(base_name)
     ext = ext.lower()
     ensure_output_dir(output_dir)
-    output_path = os.path.join(output_dir, f"{file_name}.{output_ext}")
+    out_stem = output_stem if output_stem is not None else file_name
+    output_path = os.path.join(output_dir, f"{out_stem}.{output_ext}")
 
     if ext == f".{output_ext}":
         # Already in desired format, just copy
