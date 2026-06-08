@@ -19,7 +19,7 @@ CIRCLE_DETECTION_CONFIG = {
     # maxRadius=1210 px, matching the previously hand-tuned absolute values.
     'minDist_frac':   0.12,
     'minRadius_frac': 0.25,
-    'maxRadius_frac': 0.35,
+    'maxRadius_frac': 0.38,
     'radius_pad_pct': 0.0,         # Grow the detected radius by this fraction. Useful if HoughCircles latches onto the inner agar rim.
     'center_tolerance_frac': 0.1, # Max allowed distance of plate centre from image centre, as a fraction of image width. Candidates outside this disc are dropped before accumulator-based selection (kills table edges, lens vignette rings). Raise it if your plates are very off-centre.
 }
