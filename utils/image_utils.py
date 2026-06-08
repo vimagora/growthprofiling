@@ -140,11 +140,14 @@ def detect_plate_circle_downscaled(image_bgr, config, resize_factor=0.25):
     BGR numpy image. Returns (x, y, r) in the original image's coordinates,
     or None if no circle is found.
 
-    Among the candidates HoughCircles returns, the one whose centre is
-    closest to the image centre wins -- the user's plates sit roughly in
-    the middle of the frame, and the raw accumulator order can otherwise
-    prefer a spurious larger circle (e.g. a lens-vignette ring or a table
-    edge) over the actual plate.
+    Candidates are first filtered to those whose centre lies within
+    config['center_tolerance_frac'] * image_width of the image centre,
+    which eliminates obvious non-plate circles (lens vignettes, table
+    edges) regardless of how strong their Hough accumulator was. Among
+    survivors, the one with the highest Hough accumulator wins -- this
+    keeps the actual plate even when it is off-centre, provided it
+    falls inside the tolerance disc. If nothing survives the filter, the
+    function falls back to the closest-to-centre candidate.
 
     config['radius_pad_pct'] (default 0.0) grows the final radius by the
     given fraction, useful if HoughCircles consistently latches onto the
@@ -161,8 +164,23 @@ def detect_plate_circle_downscaled(image_bgr, config, resize_factor=0.25):
     if not candidates:
         return None
 
+    # Two-stage selection:
+    #   1. Drop candidates whose centre is more than center_tolerance_frac
+    #      * width from the image centre -- these are almost certainly not
+    #      plates (table edges, lens vignette, etc.).
+    #   2. Among survivors, take the highest-accumulator candidate (the one
+    #      HoughCircles ranked first).
+    # If nothing survives the filter, fall back to closest-to-centre as a
+    # best-effort guess.
     cx, cy = new_w / 2.0, new_h / 2.0
-    best = min(candidates, key=lambda c: (c[0] - cx) ** 2 + (c[1] - cy) ** 2)
+    tol_frac = float(config.get('center_tolerance_frac', 0.25))
+    tol_sq = (tol_frac * new_w) ** 2
+    survivors = [c for c in candidates
+                 if (c[0] - cx) ** 2 + (c[1] - cy) ** 2 <= tol_sq]
+    if survivors:
+        best = survivors[0]
+    else:
+        best = min(candidates, key=lambda c: (c[0] - cx) ** 2 + (c[1] - cy) ** 2)
 
     x, y, r = best
     scale = 1.0 / resize_factor

@@ -12,15 +12,16 @@ DEFAULT_OUTPUT_EXT = 'tiff'
 CIRCLE_DETECTION_CONFIG = {
     'dp': 1.5,              # How much to reduce the image resolution for detection (higher = faster, less precise)
     'param1': 100,          # Sensitivity for finding edges in the image (higher = fewer edges detected)
-    'param2': 30,           # How strong a circle needs to be to count as a real circle (lower = more circles found, but more false ones)
+    'param2': 40,           # How strong a circle needs to be to count as a real circle (lower = more circles found, but more false ones)
     # The next three are expressed as a fraction of the image width so the
     # detector is resolution-independent. On a 4032 px wide image
     # (iPhone HEIC default) these correspond to minDist=484, minRadius=847,
     # maxRadius=1210 px, matching the previously hand-tuned absolute values.
     'minDist_frac':   0.12,
-    'minRadius_frac': 0.21,
-    'maxRadius_frac': 0.30,
-    'radius_pad_pct': 0.0,  # Grow the detected radius by this fraction. Useful if HoughCircles latches onto the inner agar rim.
+    'minRadius_frac': 0.25,
+    'maxRadius_frac': 0.35,
+    'radius_pad_pct': 0.0,         # Grow the detected radius by this fraction. Useful if HoughCircles latches onto the inner agar rim.
+    'center_tolerance_frac': 0.25, # Max allowed distance of plate centre from image centre, as a fraction of image width. Candidates outside this disc are dropped before accumulator-based selection (kills table edges, lens vignette rings). Raise it if your plates are very off-centre.
 }
 
 # ---- Paths ----
