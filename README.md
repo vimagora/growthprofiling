@@ -2,14 +2,14 @@
 
 This tool processes a batch of growth profiling images, converting them to TIFF, relabeling them, and cropping the plate for publication. It supports various image formats including `.heic`, `.jpg`, `.png`, `.tiff`, and `.jpeg`.
 
-When a `rename_matrix.csv` is provided, images are renamed based on the specified labels. If no rename matrix exists, the tool uses Tesseract OCR to automatically extract and clean text from the top and bottom labels of the pictures to rename the files.
+A `rename_matrix.csv` is **required**: each raw image must have a corresponding `old_name` → `new_name` row in the CSV. Files in the raw directory that are not listed are skipped with a warning.
 
 ---
 
 ## Features
 
 - **Batch conversion**: Converts various image formats to `.tiff`.
-- **Renaming**: Renames images using a provided `rename_matrix.csv` or through OCR.
+- **Renaming**: Renames images using a required `rename_matrix.csv`.
 - **Automated cropping**: Crops the petri dish from the image for figure preparation.
 - **Multithreaded processing**: Uses all available CPU cores by default for fast batch processing. You can override the number of threads with a command-line argument.
 - **Fast circle detection**: Detects plate circles on JPEGs for speed, then applies coordinates to original TIFFs.
@@ -49,9 +49,9 @@ When a `rename_matrix.csv` is provided, images are renamed based on the specifie
 
     Put your raw images inside the `local_data/raw_pictures/` directory.
 
-5. **(Optional) Provide a Rename Matrix**: 
+5. **Provide a Rename Matrix (required)**:
 
-    If you want to rename your images using a predefined list, create or edit the `local_data/rename_matrix_example.csv` file and rename as `local_data/rename_matrix.csv`. The file needs to include a column `old_name` with the file names without the extension (e.g. `IMG_4469.HEIC` → `IMG_4469`) and a column `new_name` (e.g. `strainA_substrateB_ndays`) The tool will use this file to rename images, ignoring the OCR step.
+    Create or edit `local_data/rename_matrix_example.csv` and save it as `local_data/rename_matrix.csv`. The file must include a column `old_name` with file names without the extension (e.g. `IMG_4469.HEIC` → `IMG_4469`) and a column `new_name` (e.g. `strainA_substrateB_ndays`). Raw images whose stem is not listed in the CSV are skipped with a warning.
 
 6.  **Run the picture processing tool**:
 
@@ -88,19 +88,9 @@ When a `rename_matrix.csv` is provided, images are renamed based on the specifie
 
 Install **Anaconda** from your institution's **Software Center** or by downloading the installer from the [Anaconda downloadpage](https://www.anaconda.com/download).
 
-### 2. Tesseract OCR
-
-If you do not plan to use a `rename_matrix.csv`and instead want the tool to automatically rename files, you must install Tesseract OCR.
-
-**Download**: Tesseract installers and instructions for various operating systems are available on the [Tesseract-OCR Downloads page](https://tesseract-ocr.github.io/tessdoc/Downloads.html).
-
-**Windows**: UB Mannheim provides reliable Windows installers.
-
 ## Configuration
 
-You can adjust various settings by editing `config.py`. These settings include file paths, supported formats, and OCR behavior. For example, you can change the input and output directories or fine-tune the circle recognition parameters.
-
-**Important**: When using the OCR features, remember to update the path to the Tesseract-OCR executable in `config.py`.
+You can adjust various settings by editing `config.py`. These settings include file paths, supported formats, and circle-detection parameters. For example, you can change the input and output directories or fine-tune the circle recognition parameters.
 
 ## Directory architechture
 
@@ -112,10 +102,9 @@ project_root/
 ├── requirements.txt            # List of Python dependencies
 ├── utils/                      # Helper scripts
 │   ├── image_utils.py          # Functions for image processing
-│   ├── ocr_utils.py            # Functions for OCR operations
 │   └── figure_utils.py         # Functions for figure creation
 ├── local_data/                 # All data and output files are stored here
-│   ├── rename_matrix.csv       # (Optional) CSV file for renaming images
+│   ├── rename_matrix.csv       # CSV file for renaming images (required)
 │   ├── rename_matrix_example.csv # Example CSV for reference
 │   ├── raw_pictures/           # Place your input images here
 │   ├── converted_pictures/     # Intermediate TIFF files are saved here

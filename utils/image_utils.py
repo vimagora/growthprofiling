@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image
 import pillow_heif
 import cv2
-from config import DEFAULT_OUTPUT_EXT, CROP_PERCENTAGE
+from config import DEFAULT_OUTPUT_EXT
 
 def ensure_output_dir(path):
     os.makedirs(path, exist_ok=True)
@@ -39,25 +39,6 @@ def convert_to_tiff(input_path, output_dir, output_ext=DEFAULT_OUTPUT_EXT):
     except Exception as e:
         print(f"[ERROR] Could not convert {input_path}: {e}")
         return None
-
-def crop_top_bottom(image, crop_pct=CROP_PERCENTAGE):
-    """
-    Crops the top and bottom X% of the image height.
-    Returns: (top_crop, bottom_crop)
-    """
-    height, width = image.shape[:2]
-    delta = int(height * crop_pct)
-    top_crop = image[0:delta, :]
-    bottom_crop = image[-delta:, :]
-    return top_crop, bottom_crop
-
-def preprocess_for_ocr(image):
-    """
-    Preprocesses an image for OCR: grayscale and Otsu thresholding.
-    """
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return thresh
 
 def detect_plate_circle(image, config):
     """
