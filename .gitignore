@@ -13,3 +13,6 @@ local_data/*
 # the calibration script writes them locally and they should not be committed.
 tests/fixtures/expected_circles.csv
 tests/fixtures/overlays/
+
+# Generated figure outputs (default name pattern from generate_figure.py).
+growth_profile_figure*.pdf

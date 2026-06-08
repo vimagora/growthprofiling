@@ -24,6 +24,11 @@ CIRCLE_DETECTION_CONFIG = {
     'maxRadius_frac': 0.38,
     'radius_pad_pct': 0.0,         # Grow the detected radius by this fraction. Useful if HoughCircles latches onto the inner agar rim.
     'center_tolerance_frac': 0.1, # Max allowed distance of plate centre from image centre, as a fraction of image width. Candidates outside this disc are dropped before accumulator-based selection (kills table edges, lens vignette rings). Raise it if your plates are very off-centre.
+    # Pre-Hough Gaussian blur. Higher values smear out thin bright rings
+    # (e.g. a ring-light halo at the agar meniscus) so Hough can lock onto
+    # the wider plastic-rim gradient instead. Must be odd.
+    'blur_ksize': 15,
+    'blur_sigma': 5,
 }
 
 # ---- Paths ----

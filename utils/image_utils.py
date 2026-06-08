@@ -74,8 +74,15 @@ def detect_plate_circles(image, config):
     # upper threshold, so we just pass it the blurred grayscale. Running an
     # explicit equalizeHist + Canny ahead of it (the previous behaviour)
     # tended to produce noisier edges and was strictly slower.
+    # The blur kernel and sigma are configurable: a wider blur smears out
+    # thin bright artefacts (e.g. ring-light halos at the agar meniscus)
+    # so Hough can lock onto the broader plastic-rim gradient instead.
+    ksize = int(config.get('blur_ksize', 5))
+    if ksize % 2 == 0:
+        ksize += 1
+    sigma = float(config.get('blur_sigma', 2))
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 2)
+    blurred = cv2.GaussianBlur(gray, (ksize, ksize), sigma)
     circles = cv2.HoughCircles(
         blurred, cv2.HOUGH_GRADIENT,
         dp=config['dp'],
