@@ -42,14 +42,26 @@ def main():
                         help='Whether strains are on the vertical or horizontal axis (default: interactive prompt).')
     parser.add_argument('--output', default=os.path.join(BASE_DIR, 'growth_profile_figure.pdf'),
                         help='Output PDF path.')
+    parser.add_argument('--cell-size', type=float, default=4.0,
+                        help='Side length in inches for each cell in the grid (default: 4.0).')
+    parser.add_argument('--label-fontsize', type=int, default=12,
+                        help='Font size for row labels and column titles (default: 12).')
+    parser.add_argument('--dpi', type=int, default=300,
+                        help='Resolution of the output PDF (default: 300).')
+    parser.add_argument('--force', action='store_true',
+                        help='Overwrite the output PDF if it already exists.')
     args = parser.parse_args()
+
+    if os.path.exists(args.output) and not args.force:
+        logging.error(f"Output {args.output} already exists. Use --force to overwrite.")
+        sys.exit(1)
 
     rename_csv_path = os.path.join(DATA_DIR, args.rename_csv)
     if not os.path.isfile(rename_csv_path):
         logging.error(f"Rename CSV not found: {rename_csv_path}")
         sys.exit(1)
 
-    images, strains, substrates, timepoints = load_images(CROPPED_DIR, rename_csv_path)
+    images, strains, substrates, timepoints, labels = load_images(CROPPED_DIR, rename_csv_path)
     if not images:
         logging.error("No cropped images found that match the rename matrix.")
         sys.exit(1)
@@ -88,8 +100,18 @@ def main():
         logging.error("Strains, substrates, and a timepoint are all required.")
         sys.exit(1)
 
-    generate_figure(selected_strains, selected_substrates, selected_timepoint,
-                    images, args.output, axis_choice)
+    generate_figure(
+        selected_strains,
+        selected_substrates,
+        selected_timepoint,
+        images,
+        args.output,
+        axis_choice,
+        cell_size=args.cell_size,
+        label_fontsize=args.label_fontsize,
+        dpi=args.dpi,
+        labels=labels,
+    )
     logging.info(f"Figure saved as {args.output}")
 
 

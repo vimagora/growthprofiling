@@ -90,10 +90,27 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
         --strains CBS464,CBS487 \
         --substrates cellulose,starch \
         --timepoint 3d \
-        --output figure.pdf
+        --output figure.pdf \
+        --cell-size 4 \
+        --label-fontsize 12 \
+        --dpi 300 \
+        --force
     ```
 
+    | Flag | Default | Purpose |
+    |---|---|---|
+    | `--axis` | (prompt) | `vertical` puts strains on rows; `horizontal` flips. |
+    | `--strains` / `--substrates` | (prompt) | Comma-separated subsets to include. Validated against the CSV. |
+    | `--timepoint` | (prompt) | Single timepoint to plot. |
+    | `--output` | `growth_profile_figure.pdf` | Output PDF path. |
+    | `--cell-size` | `4.0` | Side length (inches) of each grid cell. |
+    | `--label-fontsize` | `12` | Font size for row labels and column titles. |
+    | `--dpi` | `300` | Resolution of the rendered PDF. |
+    | `--force` | off | Overwrite the output PDF if it already exists. |
+
     The rename matrix is the source of truth: if it includes `strain`, `substrate`, and `day` columns those are used directly; otherwise the script parses these from `new_name` by splitting on `_` (which requires exactly three tokens).
+
+    **Optional display labels.** Add `display_strain`, `display_substrate`, and/or `display_day` columns to `rename_matrix.csv` to override how each value is rendered in the figure. Useful for publication-quality formatting (e.g. `CBS464` → `B. acidogenes`) without renaming the underlying data. Empty cells in those columns fall back to the raw key.
 
 ***
 

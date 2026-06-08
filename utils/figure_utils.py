@@ -17,7 +17,25 @@ def load_images(cropped_dir, rename_csv_path):
     rows whose new_name does not split into exactly three tokens are
     skipped with a warning.
 
-    Returns: (images dict, sorted strains, sorted substrates, sorted timepoints).
+    The CSV may also include optional 'display_strain', 'display_substrate',
+    and 'display_day' columns: when present and non-empty, those values are
+    used as the figure labels instead of the raw keys. This lets you keep
+    machine-friendly identifiers in the data while showing publication-
+    quality labels in the output.
+
+    Returns:
+        (images, strains, substrates, timepoints, labels)
+
+    where labels is a dict::
+
+        {
+            'strain':    {raw_key: display_label, ...},
+            'substrate': {raw_key: display_label, ...},
+            'day':       {raw_key: display_label, ...},
+        }
+
+    Keys with no display override are absent from the inner dicts; the
+    caller should fall back to the raw key in that case.
     """
     df = pd.read_csv(rename_csv_path)
     if 'new_name' not in df.columns:
@@ -27,6 +45,12 @@ def load_images(cropped_dir, rename_csv_path):
 
     images = {}
     strains, substrates, timepoints = set(), set(), set()
+    labels = {'strain': {}, 'substrate': {}, 'day': {}}
+    display_cols = {
+        'strain': 'display_strain',
+        'substrate': 'display_substrate',
+        'day': 'display_day',
+    }
 
     for _, row in df.iterrows():
         new_name = str(row['new_name'])
@@ -53,16 +77,52 @@ def load_images(cropped_dir, rename_csv_path):
         substrates.add(substrate)
         timepoints.add(timepoint)
 
-    return images, sorted(strains), sorted(substrates), sorted(timepoints)
+        # Collect display labels if the optional columns are present.
+        key_for_cat = {'strain': strain, 'substrate': substrate, 'day': timepoint}
+        for cat, col in display_cols.items():
+            if col in df.columns:
+                val = row[col]
+                if not pd.isna(val) and str(val).strip():
+                    labels[cat][key_for_cat[cat]] = str(val).strip()
+
+    return images, sorted(strains), sorted(substrates), sorted(timepoints), labels
 
 
-def generate_figure(selected_strains, selected_substrates, selected_timepoint, images, output_pdf, axis_choice):
+def generate_figure(
+    selected_strains,
+    selected_substrates,
+    selected_timepoint,
+    images,
+    output_pdf,
+    axis_choice,
+    cell_size=4.0,
+    label_fontsize=12,
+    dpi=300,
+    labels=None,
+):
     """
     Generates a grid figure with strains on one axis and substrates on the other.
+
+    Parameters
+    ----------
+    cell_size : float
+        Side length, in inches, of each cell in the grid.
+    label_fontsize : int
+        Font size for row labels and column titles.
+    dpi : int
+        Resolution of the rendered PDF.
+    labels : dict | None
+        Optional display-label overrides as produced by load_images().
     """
+    labels = labels or {'strain': {}, 'substrate': {}, 'day': {}}
+
+    def label_for(cat, key):
+        return labels.get(cat, {}).get(key, key)
+
     n_rows = len(selected_strains) if axis_choice == 'vertical' else len(selected_substrates)
     n_cols = len(selected_substrates) if axis_choice == 'vertical' else len(selected_strains)
-    fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(4*n_cols, 4*n_rows))
+    fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols,
+                             figsize=(cell_size * n_cols, cell_size * n_rows))
 
     if n_rows == 1 and n_cols == 1:
         axes = np.array([[axes]])
@@ -91,11 +151,15 @@ def generate_figure(selected_strains, selected_substrates, selected_timepoint, i
             # ylabel = identity of the row (varies down the column).
             # title  = identity of the column (varies across the row).
             if j == 0:
-                ax.set_ylabel(strain if axis_choice == 'vertical' else substrate, fontsize=12)
+                row_cat = 'strain' if axis_choice == 'vertical' else 'substrate'
+                row_key = strain if axis_choice == 'vertical' else substrate
+                ax.set_ylabel(label_for(row_cat, row_key), fontsize=label_fontsize)
             if i == 0:
-                ax.set_title(substrate if axis_choice == 'vertical' else strain, fontsize=12)
+                col_cat = 'substrate' if axis_choice == 'vertical' else 'strain'
+                col_key = substrate if axis_choice == 'vertical' else strain
+                ax.set_title(label_for(col_cat, col_key), fontsize=label_fontsize)
 
     plt.subplots_adjust(wspace=0, hspace=0)
     with PdfPages(output_pdf) as pdf:
-        pdf.savefig(fig, bbox_inches='tight', pad_inches=0.1)
+        pdf.savefig(fig, bbox_inches='tight', pad_inches=0.1, dpi=dpi)
     plt.close(fig)
