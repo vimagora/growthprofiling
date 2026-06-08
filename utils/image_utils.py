@@ -66,31 +66,28 @@ def detect_plate_circle(image, config):
         return tuple(int(v) for v in circles[0][0])  # x, y, radius
     return None
 
-def detect_plate_circle_fast(tiff_path, config, jpeg_resize_factor=0.25):
+def detect_plate_circle_downscaled(image_bgr, config, resize_factor=0.25):
     """
-    Detects the plate circle on a JPEG version of the TIFF for speed.
-    Returns (x, y, r) in TIFF coordinates.
+    Detects the plate circle on a downscaled copy of an already-decoded
+    BGR numpy image. Returns (x, y, r) in the original image's coordinates,
+    or None if no circle is found.
     """
-    img_pil = Image.open(tiff_path)
-    orig_size = img_pil.size  # (width, height)
-    new_size = (int(orig_size[0] * jpeg_resize_factor), int(orig_size[1] * jpeg_resize_factor))
-    img_pil_small = img_pil.resize(new_size, Image.LANCZOS)
-    img_jpeg = np.array(img_pil_small.convert('RGB'))
-    img_jpeg = cv2.cvtColor(img_jpeg, cv2.COLOR_RGB2BGR)
+    h, w = image_bgr.shape[:2]
+    new_w = max(1, int(w * resize_factor))
+    new_h = max(1, int(h * resize_factor))
+    small = cv2.resize(image_bgr, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
-    # Scale circle detection parameters based on resize factor
     scaled_config = config.copy()
     for key in ['minDist', 'minRadius', 'maxRadius']:
         if key in scaled_config:
-            scaled_config[key] = max(1, int(scaled_config[key] * jpeg_resize_factor))
+            scaled_config[key] = max(1, int(scaled_config[key] * resize_factor))
 
-    circle = detect_plate_circle(img_jpeg, scaled_config)
-    if circle is not None:
-        x, y, r = circle
-        scale = 1.0 / jpeg_resize_factor
-        x, y, r = int(x * scale), int(y * scale), int(r * scale)
-        return (x, y, r)
-    return None
+    circle = detect_plate_circle(small, scaled_config)
+    if circle is None:
+        return None
+    x, y, r = circle
+    scale = 1.0 / resize_factor
+    return (int(x * scale), int(y * scale), int(r * scale))
 
 def crop_plate(image, circle):
     """
