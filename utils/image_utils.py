@@ -83,13 +83,15 @@ def convert_to_tiff(input_path, output_dir, output_ext=DEFAULT_OUTPUT_EXT, outpu
         print(f"[ERROR] Could not convert {input_path}: {e}")
         return None
 
-def detect_plate_circle(image, config):
+def detect_plate_circles(image, config):
     """
-    Detects a circle in the image using HoughCircles.
+    Returns all plate-circle candidates from HoughCircles as a list of
+    (x, y, r) tuples, ordered by accumulator strength (best first).
+    Returns an empty list if no circles are found.
     """
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     gray = cv2.equalizeHist(gray)
-    blurred = cv2.GaussianBlur(gray, (5,5), 2)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 2)
     edges = cv2.Canny(blurred, 50, 150)
     circles = cv2.HoughCircles(
         edges, cv2.HOUGH_GRADIENT,
@@ -100,10 +102,20 @@ def detect_plate_circle(image, config):
         minRadius=config['minRadius'],
         maxRadius=config['maxRadius']
     )
-    if circles is not None:
-        circles = np.uint16(np.around(circles))
-        return tuple(int(v) for v in circles[0][0])  # x, y, radius
-    return None
+    if circles is None:
+        return []
+    circles = np.uint16(np.around(circles))
+    return [tuple(int(v) for v in c) for c in circles[0]]
+
+
+def detect_plate_circle(image, config):
+    """
+    Detects a single circle. Kept for callers that only want the
+    highest-accumulator candidate.
+    """
+    candidates = detect_plate_circles(image, config)
+    return candidates[0] if candidates else None
+
 
 def detect_plate_circle_downscaled(image_bgr, config, resize_factor=0.25):
     """
@@ -111,8 +123,14 @@ def detect_plate_circle_downscaled(image_bgr, config, resize_factor=0.25):
     BGR numpy image. Returns (x, y, r) in the original image's coordinates,
     or None if no circle is found.
 
-    config['radius_pad_pct'] (default 0.0) is applied to the final radius
-    after upscaling, to compensate for HoughCircles latching onto the
+    Among the candidates HoughCircles returns, the one whose centre is
+    closest to the image centre wins -- the user's plates sit roughly in
+    the middle of the frame, and the raw accumulator order can otherwise
+    prefer a spurious larger circle (e.g. a lens-vignette ring or a table
+    edge) over the actual plate.
+
+    config['radius_pad_pct'] (default 0.0) grows the final radius by the
+    given fraction, useful if HoughCircles consistently latches onto the
     inner agar rim instead of the outer plate edge.
     """
     h, w = image_bgr.shape[:2]
@@ -125,10 +143,14 @@ def detect_plate_circle_downscaled(image_bgr, config, resize_factor=0.25):
         if key in scaled_config:
             scaled_config[key] = max(1, int(scaled_config[key] * resize_factor))
 
-    circle = detect_plate_circle(small, scaled_config)
-    if circle is None:
+    candidates = detect_plate_circles(small, scaled_config)
+    if not candidates:
         return None
-    x, y, r = circle
+
+    cx, cy = new_w / 2.0, new_h / 2.0
+    best = min(candidates, key=lambda c: (c[0] - cx) ** 2 + (c[1] - cy) ** 2)
+
+    x, y, r = best
     scale = 1.0 / resize_factor
     pad = float(config.get('radius_pad_pct', 0.0))
     return (int(x * scale), int(y * scale), int(r * scale * (1.0 + pad)))
