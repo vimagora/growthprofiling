@@ -25,7 +25,8 @@ sys.path.insert(0, ROOT)
 import cv2
 from config import RAW_DIR, SUPPORTED_FORMATS, CIRCLE_DETECTION_CONFIG
 from utils.image_utils import (
-    detect_plate_circle_downscaled, draw_detected_circle, load_image_bgr,
+    _pixel_bounds, detect_plate_circle_downscaled, draw_detected_circle,
+    load_image_bgr,
 )
 
 FIXTURES_DIR = os.path.join(ROOT, 'tests', 'fixtures')
@@ -69,6 +70,9 @@ def main():
             print("LOAD FAILED")
             failures.append(fname)
             continue
+        h, w = image.shape[:2]
+        _, min_r, max_r = _pixel_bounds(CIRCLE_DETECTION_CONFIG, w)
+        print(f"{w}x{h}, radius bounds=[{min_r},{max_r}]px -> ", end='', flush=True)
         circle = detect_plate_circle_downscaled(image, CIRCLE_DETECTION_CONFIG, resize_factor=0.25)
         if circle is None:
             print("NO CIRCLE DETECTED")

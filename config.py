@@ -10,13 +10,17 @@ DEFAULT_OUTPUT_EXT = 'tiff'
 
 # ---- Circle detection settings ----
 CIRCLE_DETECTION_CONFIG = {
-    'dp': 1.5,             # How much to reduce the image resolution for detection (higher = faster, less precise)
-    'minDist': 500,        # How close two circles can be to each other (in pixels)
-    'param1': 100,         # Sensitivity for finding edges in the image (higher = fewer edges detected)
-    'param2': 30,          # How strong a circle needs to be to count as a real circle (lower = more circles found, but more false ones)
-    'minRadius': 850,      # Smallest circle size to look for (in pixels)
-    'maxRadius': 1300,     # Largest circle size to look for (in pixels)
-    'radius_pad_pct': 0.0, # Grow the detected radius by this fraction. Useful if HoughCircles latches onto the inner agar rim.
+    'dp': 1.5,              # How much to reduce the image resolution for detection (higher = faster, less precise)
+    'param1': 100,          # Sensitivity for finding edges in the image (higher = fewer edges detected)
+    'param2': 30,           # How strong a circle needs to be to count as a real circle (lower = more circles found, but more false ones)
+    # The next three are expressed as a fraction of the image width so the
+    # detector is resolution-independent. On a 4032 px wide image
+    # (iPhone HEIC default) these correspond to minDist=484, minRadius=847,
+    # maxRadius=1210 px, matching the previously hand-tuned absolute values.
+    'minDist_frac':   0.12,
+    'minRadius_frac': 0.21,
+    'maxRadius_frac': 0.30,
+    'radius_pad_pct': 0.0,  # Grow the detected radius by this fraction. Useful if HoughCircles latches onto the inner agar rim.
 }
 
 # ---- Paths ----

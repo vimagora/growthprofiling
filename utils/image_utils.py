@@ -83,12 +83,29 @@ def convert_to_tiff(input_path, output_dir, output_ext=DEFAULT_OUTPUT_EXT, outpu
         print(f"[ERROR] Could not convert {input_path}: {e}")
         return None
 
+def _pixel_bounds(config, width):
+    """
+    Resolves the fraction-of-width config knobs to concrete pixel values
+    for a given image width. Returns (min_dist, min_radius, max_radius).
+    """
+    min_radius = max(1, int(config['minRadius_frac'] * width))
+    max_radius = max(min_radius + 1, int(config['maxRadius_frac'] * width))
+    min_dist = max(1, int(config['minDist_frac'] * width))
+    return min_dist, min_radius, max_radius
+
+
 def detect_plate_circles(image, config):
     """
     Returns all plate-circle candidates from HoughCircles as a list of
     (x, y, r) tuples, ordered by accumulator strength (best first).
     Returns an empty list if no circles are found.
+
+    minDist/minRadius/maxRadius are read from config as fractions of
+    the input image's width, so the detector is resolution-independent.
     """
+    h, w = image.shape[:2]
+    min_dist, min_radius, max_radius = _pixel_bounds(config, w)
+
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     gray = cv2.equalizeHist(gray)
     blurred = cv2.GaussianBlur(gray, (5, 5), 2)
@@ -96,11 +113,11 @@ def detect_plate_circles(image, config):
     circles = cv2.HoughCircles(
         edges, cv2.HOUGH_GRADIENT,
         dp=config['dp'],
-        minDist=config['minDist'],
+        minDist=min_dist,
         param1=config['param1'],
         param2=config['param2'],
-        minRadius=config['minRadius'],
-        maxRadius=config['maxRadius']
+        minRadius=min_radius,
+        maxRadius=max_radius,
     )
     if circles is None:
         return []
@@ -138,12 +155,9 @@ def detect_plate_circle_downscaled(image_bgr, config, resize_factor=0.25):
     new_h = max(1, int(h * resize_factor))
     small = cv2.resize(image_bgr, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
-    scaled_config = config.copy()
-    for key in ['minDist', 'minRadius', 'maxRadius']:
-        if key in scaled_config:
-            scaled_config[key] = max(1, int(scaled_config[key] * resize_factor))
-
-    candidates = detect_plate_circles(small, scaled_config)
+    # No manual rescale: minDist/min/maxRadius are fractions of width, so
+    # they auto-adapt to whatever image size we pass in.
+    candidates = detect_plate_circles(small, config)
     if not candidates:
         return None
 
