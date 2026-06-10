@@ -21,10 +21,10 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
 
 ## Usage
 
-1.  **Clone the [repository](https://github.com/GonzalezVictorM/growthprofiling.git)**:
+1.  **Clone the [repository](https://github.com/vimagora/growthprofiling.git)**:
 
     ```bash
-    git clone https://github.com/GonzalezVictorM/growthprofiling.git
+    git clone https://github.com/vimagora/growthprofiling.git
     cd growthprofiling
     ```
     
