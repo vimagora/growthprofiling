@@ -118,6 +118,30 @@ A `rename_matrix.csv` is **required**: each raw image must have a corresponding 
 
 You can adjust various settings by editing `config.py`. These settings include file paths, supported formats, and circle-detection parameters. For example, you can change the input and output directories or fine-tune the circle recognition parameters.
 
+### Tuning the circle detector
+
+The default `CIRCLE_DETECTION_CONFIG` was tuned for a specific setup: petri plates photographed top-down from an iPhone (4032 px wide HEIC) under a ring light, with the plate centred in the frame and the plate diameter around 21–35% of the image width. If your photos are taken under different conditions (different camera resolution, different lighting, plate at a different distance, plates off-centre), you'll probably need to retune.
+
+The workflow:
+
+1.  **Put 5–10 representative raw images** in `local_data/raw_pictures/`.
+2.  **Run `python tools/calibrate.py`**. It runs the current config against each image, prints the resolved pixel bounds and detection results, and writes an overlay thumbnail per image to `tests/fixtures/overlays/`.
+3.  **Open the overlays.** Each shows the picked circle in green, other Hough candidates in red, the image centre as a yellow cross, and the `center_tolerance_frac` filter as a magenta disc.
+4.  **Adjust the relevant knob and re-run.**
+
+The knobs, what they do, and when to touch them:
+
+| Knob | What it does | Symptom that says "touch this" |
+|---|---|---|
+| `minRadius_frac` / `maxRadius_frac` | Bounds on plate radius, as a fraction of image width | "No circle detected" on plates of a specific size; the calibrate output shows your real plate radii outside the bounds |
+| `param2` | Hough accumulator threshold. Higher = stricter (fewer, stronger circles) | Too many spurious candidates: raise. No candidates at all on weakly-lit plates: lower |
+| `center_tolerance_frac` | Max distance of plate centre from image centre, as a fraction of image width | A spurious circle (table edge, vignette) wins on a centred plate: lower. A real off-centre plate gets filtered out and detection falls back to the wrong thing: raise |
+| `blur_ksize` / `blur_sigma` | Pre-Hough Gaussian blur | Detection latches onto the inner agar meniscus instead of the outer plastic rim (typical with ring lights): raise both. Detection misses sharp small plates: lower |
+| `radius_pad_pct` | Multiplies the final radius after detection | The detected radius consistently undershoots the real plate edge by a small constant amount: set to 0.02–0.05 |
+| `param1` | Hough's internal Canny upper threshold | Rarely needs touching. If everything else is right but detection is flaky, try 60 (more permissive edges) or 150 (fewer edges) |
+
+If you change `CIRCLE_DETECTION_CONFIG`, re-run `python tools/calibrate.py` to refresh the regression-test baseline.
+
 ## Tests
 
 The repo ships with regression tests for circle detection.
@@ -210,3 +234,7 @@ project_root/
 ## Contact
 
 For questions or contributions, please open an issue or pull request on GitHub.
+
+## License
+
+Released under the [MIT License](LICENSE).
