@@ -142,6 +142,46 @@ The repo ships with regression tests for circle detection.
 
 Fixture images, the expected CSV, and the overlays are all gitignored (they are tied to one user's photos and should stay local).
 
+## Troubleshooting
+
+### "No circular plate detected" on some images
+The detector's radius bounds or the Hough strictness don't match your images. Run `python tools/calibrate.py` and look at the overlays in `tests/fixtures/overlays/`:
+
+- **Green circle = picked**. **Red circles = other candidates Hough found**. **Magenta = `center_tolerance_frac` filter**. **Yellow cross = image centre**.
+- If you see **no red circles at all**, Hough isn't finding the plate. Lower `param2` (try 25 or 20) in `config.py` to be more permissive, or check that `minRadius_frac`/`maxRadius_frac` actually bracket your plate radii (the calibrate script prints the resolved pixel bounds per image).
+- If you see **red circles in the wrong places**, the detector is finding the plate but the selector picks something else. Adjust `center_tolerance_frac` so the magenta disc contains the real plate.
+
+### Detection finds a circle smaller than the plate (clips the rim)
+Classic with ring-light setups: a thin bright halo at the agar meniscus competes with the outer plastic rim. Increase `blur_ksize` (e.g. from 15 to 21) and `blur_sigma` (e.g. from 5 to 7) in `config.py` to smear the halo. If that's not enough, a small `radius_pad_pct` (0.02–0.03) gives every detection a small outward bias.
+
+### Detection finds a circle much larger than the plate
+A spurious circle (lens vignette, table edge, light cone on the bench) is winning. Two knobs:
+
+- **Tighten `maxRadius_frac`** if the spurious is too big to be a plate.
+- **Tighten `center_tolerance_frac`** if the spurious is off to one side. Lower values like 0.10 require the plate to sit nearly in the centre of the frame.
+
+### Tests skip the regression test
+That's expected if `tests/fixtures/expected_circles.csv` doesn't exist yet. Run `python tools/calibrate.py` first to populate it, then re-run the tests. The synthetic smoke test always runs regardless.
+
+### `pillow_heif` install fails on Windows
+HEIC decoding requires native libraries. On Windows the easiest path is:
+
+```bash
+pip install pillow_heif --only-binary=:all:
+```
+
+so pip downloads a prebuilt wheel rather than trying to compile. If that fails, install Anaconda's `libheif` first (`conda install -c conda-forge libheif`) and then re-install `pillow_heif` from pip.
+
+### Figure has no images and shows "No image" placeholders everywhere
+`generate_figure.py` looks up cropped TIFFs by `new_name` in the rename matrix. Three likely causes:
+
+- You haven't run `process_pictures.py` yet — no cropped TIFFs exist.
+- The strain/substrate/timepoint values you passed on the command line don't match what's in `rename_matrix.csv` exactly (case-sensitive). Run `python generate_figure.py` without flags to see the available values listed.
+- The matching cropped TIFFs were filtered out by your `--strains`/`--substrates`/`--timepoint` selection. Try a wider selection.
+
+### `Output ... already exists. Use --force to overwrite.`
+The figure generator now refuses to silently clobber a PDF. Either pass `--force` or change `--output` to a different filename.
+
 ## Directory architechture
 
 ```
